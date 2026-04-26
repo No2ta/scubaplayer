@@ -1,0 +1,124 @@
+/*starts screen*/
+#start-screen {
+    position: fixed; /* Stays in place even if you scroll */
+    top: 0;
+    left: 0;
+    width: 100vw; /* Full screen width */
+    height: 100vh; /* Full screen height */
+    background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%); /* Subtle grey spotlight */
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; /* Puts everything exactly in the middle */
+    z-index: 100; /* FORCES IT TO BE THE TOP LAYER */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#start-screen h1 {
+    font-size: 4rem;
+    margin-bottom: 0;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+}
+/* The GIF on the splash screen */
+#splash-gif {
+    width: 150px;      /* How wide it is */
+    height: 150px;     /* How tall it is */
+    border-radius: 20px; /* Slightly rounded corners */
+    margin-bottom: 20px; /* Space between the GIF and the title */
+    object-fit: cover;  /* Prevents the GIF from stretching weirdly */
+}
+
+
+#start-screen p {
+    color: rgba(255, 255, 255, 0.5); /* Faded text */
+    margin-top: 10px;
+    letter-spacing: 2px;
+    font-size: 1.2rem;
+}
+
+#enterBtn {
+    margin-top: 40px;
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    background: transparent;
+    color: white;
+    border: 1px solid white;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+/* Hover effect for the enter button */
+#enterBtn:hover {
+    background: white;
+    color: black;
+}
+
+
+
+body {
+    margin: 0;
+    overflow: hidden; 
+    background-color: black; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* The floating panel at the bottom */
+.ui-panel {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(20, 20, 20, 0.8);
+    padding: 15px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    backdrop-filter: blur(10px);
+}
+
+/* Groups the buttons side-by-side */
+.button-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+/* The actual button styling */
+.btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+/* When you hover over a button */
+.btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* The button that is currently selected */
+.btn.active {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: #ffffff;
+}
+
+/* The disabled play button */
+.btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Hiding the ugly default file upload styling */
+.file-input {
+    display: none;
+}
