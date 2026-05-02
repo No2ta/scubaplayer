@@ -1,283 +1,270 @@
+// scubaplayer?
+//bla bla bla improting
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-const scene = new THREE.Scene(); /* setting up the scene nothing works without it*/
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); /*adding the perspective camera there are many types in the three.js doc but this works the best for this situation*/
-camera.position.z = 5; /* camera oisiton*/
-camera.position.x = 8; /* camera oisiton*/
-const homePosition = new THREE.Vector3(8, 3, 7); /*home position meaning the position that the camera gets tped to when the user lets go of it  (the defult position) */ 
 
+const CFG = {
+    fadeStep: 0.05,
+    camReturn: 0.04,
+    bassGate: 0.48,
+    shakeGain: 3.1
+};
 
-const renderer = new THREE.WebGLRenderer({ antialias: true }); /* adding the web rendered and removing the laising (sharp edges thing) */
-const controls = new OrbitControls(camera, renderer.domElement);/*adding the orbit controls (the controls that moves the camera */
-let isDragging = false; /* cariable for if the camera is dragging on not so i can make it go back to the begining*/
+//the camera these start position is tuff to start with
+const scn = new THREE.Scene();
+const camMain = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camMain.position.z = 5;
+camMain.position.x = 8;
 
+const idlePos = new THREE.Vector3(8, 3, 7);
 
-controls.addEventListener('start', () => {
-    isDragging = true;
-}); /*checks that if the usser is dragging or not*/
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 
+// controls ^^ i love perspective cam
+const ctrl = new OrbitControls(camMain, renderer.domElement);
 
-controls.addEventListener('end', () => {
-    isDragging = false;
-});/*checks that if the usser is dragging or not*/
+let isDraggingCam = false;
+ctrl.addEventListener('start', () => isDraggingCam = true);
+ctrl.addEventListener('end', () => isDraggingCam = false);
 
-renderer.setSize(window.innerWidth, window.innerHeight); /*making the renderer work on all the screen*/
+renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-//building the composer to add effects to the objects before they get printed on the screen
-const composer = new EffectComposer(renderer); //goes to the renderer it self
 
-// it add the glow to the objects to the scene nd making them appear to the camera before printing them
-const renderPass = new RenderPass(scene, camera);
-composer.addPass(renderPass);
+// cool effects cuz am cooler
+const composerFx = new EffectComposer(renderer);
+composerFx.addPass(new RenderPass(scn, camMain));
 
-// controlling the bloom itself
-const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight), // Size of the glow
-    1.5,  // Strength
-    0.4,  // Radius
-    0.85  // Threshold: Only glow on bright colors (0.85 means dark colors stay dark)
+const bloomFx = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    1.5, 0.4, 0.85
 );
-composer.addPass(bloomPass); //adding the new blooms to the composer
+composerFx.addPass(bloomFx);
 
-const AudioContext = window.AudioContext || window.webkitAudioContext; //cause fire fox is so great i had to add the other part so it knows what audio it uses
-const audioContext = new AudioContext(); 
-const analyser = audioContext.createAnalyser(); //calculates the volume of different pitches
-analyser.fftSize = 256; // range of the analysr
-const dataArray = new Uint8Array(analyser.frequencyBinCount); // calculates 128 places for the pitches
-const waveDataArray = new Uint8Array(analyser.frequencyBinCount);
 
-// Mic Toggle State
-let micSource = null;
-let micStream = null;
-let isMicOn = false;
+// yeah i had to use Ai in this
+const AudioCTX = window.AudioContext || window.webkitAudioContext;
+const ctx = new AudioCTX();
 
-const micBtn = document.getElementById('startBtn');
+const analyser = ctx.createAnalyser();
+analyser.fftSize = 256;
 
-micBtn.addEventListener('click', async () => {
-    if (!isMicOn) { 
-        // TURN ON
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); //asks for the mic permission
-        micSource = audioContext.createMediaStreamSource(micStream);// getting the raw data
-        micSource.connect(analyser);//giving the data to the analyser
-        micBtn.textContent = "Turn Off Mic"; // Change button text
-        isMicOn = true;
-    } else {
-        // if the mic is on this turns it off
-        micSource.disconnect(); // Unplug the cable
-        micStream.getTracks().forEach(track => track.stop()); // Kill the mic
-        micBtn.textContent = "Turn On Mic"; // Change button text
-        isMicOn = false;
+const freqBuf = new Uint8Array(analyser.frequencyBinCount);
+const timeBuf = new Uint8Array(analyser.frequencyBinCount);
+
+// same
+let micEnabled = false;
+let micNodeRef = null;
+let micStreamRef = null;
+
+const micBtn = document.getElementById('micToggle');
+//i hate the permission thingy
+micBtn.onclick = async function () {
+    try {
+        if (!micEnabled) {
+            micStreamRef = await navigator.mediaDevices.getUserMedia({ audio: true });
+            micNodeRef = ctx.createMediaStreamSource(micStreamRef);
+
+            micNodeRef.connect(analyser);
+
+            micEnabled = true;
+            micBtn.textContent = "Mic On";
+
+        } else {
+            micNodeRef.disconnect();
+
+            // sometimes tracks stay alive? not sure
+            micStreamRef.getTracks().forEach(t => t.stop());
+
+            micEnabled = false;
+            micBtn.textContent = "Mic Off";
+        }
+    } catch (e) {
+        console.error("mic failed again", e); // seen this on Chrome incognito
+        micBtn.textContent = "Mic Err";
     }
+};
 
 
 
-});
- 
-// The State Machine
-let currentMode = 'bars'; // Starts in bars mode
+let mode = 'bars'; 
 
-document.getElementById('modeBarsBtn').addEventListener('click', () => {
-    currentMode = 'bars';
-});
+document.getElementById('setBars').onclick = () => mode = 'bars';
+document.getElementById('setWave').onclick = () => mode = 'wave';
+document.getElementById('setRadial').onclick = () => mode = 'radial';
 
-document.getElementById('modeWaveBtn').addEventListener('click', () => {
-    currentMode = 'wave';
-});
-document.getElementById('modeRadialBtn').addEventListener('click', () => {
-    currentMode = 'radial';
-});
-document.getElementById('fakeUploadBtn').addEventListener('click', () => {
-    document.getElementById('audioUpload').click();
-});
-// main menu
-document.getElementById('enterBtn').addEventListener('click', () => {
-    // Delete the top layer
+document.getElementById('enterBtn').onclick = function () {
     document.getElementById('start-screen').style.display = 'none';
-    
-    // Unhide the bottom UI panel
     document.querySelector('.ui-panel').style.display = 'flex';
+};
+
+// custom music cuz imagine singing in the mic the whole day
+const audioTag = new Audio();
+let srcLinked = false;
+
+document.getElementById('fileInput').addEventListener('change', function (e) {
+    const f = e.target.files[0];
+    if (!f) return;
+
+    audioTag.src = URL.createObjectURL(f);
+
+    document.getElementById('audioPlay').disabled = false;
+    document.getElementById('audioStop').disabled = false;
 });
 
-const audioElement = new Audio(); 
-let isMp3Connected = false;
+document.getElementById('audioPlay').onclick = function () {
+    if (ctx.state === 'suspended') ctx.resume();
 
-document.getElementById('audioUpload').addEventListener('change', (event) => {const file = event.target.files[0];
-    const fileurl = URL.createObjectURL(file);// by getting the path of the mp3 from the files you turn it into a temp web for the webpage to use
-    audioElement.src = fileurl;
-    document.getElementById('playBtn').disabled = false; 
-    document.getElementById('stopBtn').disabled = false; 
-});
-
-document.getElementById('playBtn').addEventListener('click', () => {
-     if (audioContext.state === 'suspended') {
-        audioContext.resume();
+    if (!srcLinked) {
+        const src = ctx.createMediaElementSource(audioTag);
+        src.connect(analyser);
+        analyser.connect(ctx.destination);
+        srcLinked = true;
     }
-    if (!isMp3Connected) {
-        const source = audioContext.createMediaElementSource(audioElement);
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
-        isMp3Connected = true;
-    }
-    audioElement.play();
-}); // <--- Play button closes here
 
+    audioTag.play();
+};
 
-// Stop button is completely separate!
-document.getElementById('stopBtn').addEventListener('click', () => {
-    audioElement.pause(); 
-    audioElement.currentTime = 0; 
-});
+document.getElementById('audioStop').onclick = function () {
+    audioTag.pause();
+    audioTag.currentTime = 0;
+};
 
-
-
-//list for the cubes
-const cubes = [];
+// the fun design
+const barsArr = []; 
 
 for (let i = 0; i < 64; i++) {
-    const geo = new THREE.BoxGeometry(0.2, 1, 0.2);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const c = new THREE.Mesh(geo, mat);
-    c.position.x = (i - 31.5) * 0.2; 
+    let mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 1, 0.2),
+        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+    );
 
-    scene.add(c);
-    cubes.push(c);
+    mesh.position.x = (i - 31.5) * 0.2;
+
+    scn.add(mesh);
+    barsArr.push(mesh);
 }
 
-// Create an array to hold 128 X, Y, and Z coordinates (128 * 3 = 384 numbers)
-const wavePositions = new Float32Array(128 * 3);
+//the wavee
+const wavePts = new Float32Array(128 * 3);
+const waveGeom = new THREE.BufferGeometry();
+waveGeom.setAttribute('position', new THREE.BufferAttribute(wavePts, 3));
 
-// The skeleton for the line
-const waveGeometry = new THREE.BufferGeometry();
-waveGeometry.setAttribute('position', new THREE.BufferAttribute(wavePositions, 3));
+const waveMat = new THREE.LineBasicMaterial({ color: 0xff00ff });
+const waveObj = new THREE.Line(waveGeom, waveMat);
 
-// The skin for the line (neon pink)
-const waveMaterial = new THREE.LineBasicMaterial({ color: 0xff00ff });
-const waveLine = new THREE.Line(waveGeometry, waveMaterial);
-waveLine.visible = false; // Hide it by default
-scene.add(waveLine);
+waveObj.visible = false;
+scn.add(waveObj);
 
-
-// --- RADIAL SUN FACTORY ---
-const radialCubes = [];
-const radius = 4; // How big the circle is
+// sun likey but uh ai said its called radical or radial idk
+const radialBits = [];
+const r = 4;
 
 for (let i = 0; i < 32; i++) {
-    const geo = new THREE.BoxGeometry(0.3, 1, 0.3);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); // Cyan color
-    const c = new THREE.Mesh(geo, mat);
+    let m = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 1, 0.3),
+        new THREE.MeshBasicMaterial({ color: 0x00ffff })
+    );
 
-    // The Clock Math!
-    // angle calculates where this cube sits on the 360-degree circle
-    const angle = (i / 32) * Math.PI * 2; // Math.PI * 2 is a full circle
-    
-    // cos(angle) gives us the X position on the circle
-    c.position.x = Math.cos(angle) * radius;
-    
-    // sin(angle) gives us the Z position on the circle
-    c.position.z = Math.sin(angle) * radius;
-    
-    // Make the cube look toward the center of the circle
-    c.lookAt(0, 0, 0);
+    let a = (i / 32) * Math.PI * 2;
 
-    c.visible = false; // Hidden by default
-    scene.add(c);
-    radialCubes.push(c);
+    m.position.x = Math.cos(a) * r;
+    m.position.z = Math.sin(a) * r;
+
+    m.lookAt(0, 0, 0);
+    m.visible = false;
+
+    scn.add(m);
+    radialBits.push(m);
 }
 
-// --- STAR FIELD ---
-// 1. Create 1000 empty slots to hold X, Y, and Z coordinates
-const starPositions = new Float32Array(1000 * 3);
-
-// 2. Scatter them randomly in a giant cube
+// particles needed the help of ai in this tbh
+const pts = new Float32Array(1000 * 3);
 for (let i = 0; i < 1000; i++) {
-    // Math.random() gives a number between 0 and 1. 
-    // We multiply by 40 and subtract 20 to get numbers between -20 and +20
-    starPositions[i * 3]     = (Math.random() - 0.5) * 40; // X
-    starPositions[(i * 3) + 1] = (Math.random() - 0.5) * 40; // Y
-    starPositions[(i * 3) + 2] = (Math.random() - 0.5) * 40; // Z
+    pts[i * 3] = (Math.random() - 0.5) * 40;
+    pts[i * 3 + 1] = (Math.random() - 0.5) * 40;
+    pts[i * 3 + 2] = (Math.random() - 0.5) * 40;
 }
 
-//the particles
-const starGeometry = new THREE.BufferGeometry();
-starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1 });
-const stars = new THREE.Points(starGeometry, starMaterial);
-scene.add(stars);
+const dust = new THREE.Points(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(pts, 3)),
+    new THREE.PointsMaterial({ size: 0.1 })
+);
 
+scn.add(dust);
 
+// resize the basics froma playlist i watched tbh 
+window.addEventListener('resize', () => {
+    camMain.aspect = window.innerWidth / window.innerHeight;
+    camMain.updateProjectionMatrix();
 
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composerFx.setSize(window.innerWidth, window.innerHeight);
+});
 
+//the loooooopppp
+function run() {
+    requestAnimationFrame(run);
 
-function animate() {
-    requestAnimationFrame(animate);
+    analyser.getByteFrequencyData(freqBuf);
 
-    //getting the pitches
-    analyser.getByteFrequencyData(dataArray);
-
-    // if the mode is bars remove wave and circle
-    if (currentMode === 'bars') {
-        waveLine.visible = false;
+    if (mode === 'bars') {
+        waveObj.visible = false;
         for (let i = 0; i < 32; i++) {
-            radialCubes[i].visible = false;
+            radialBits[i].visible = false;
         }
 
-        // Show the bars 
         for (let i = 0; i < 64; i++) {
-            cubes[i].visible = true; 
-            const pitch = dataArray[i] / 255;
-            cubes[i].scale.y = 0.2 + (pitch * 5);
-            cubes[i].material.color.setHSL(pitch * 0.8, 1, 0.5);
+            barsArr[i].visible = true; 
+            const pitch = freqBuf[i] / 255;
+            barsArr[i].scale.y = 0.2 + (pitch * 5);
+            barsArr[i].material.color.setHSL(pitch * 0.8, 1, 0.5);
         }
-        //if its wave remove bars and circle
-    } else if (currentMode === 'wave') {
+    } else if (mode === 'wave') {
         for (let i = 0; i < 32; i++) {
-            radialCubes[i].visible = false;
+            radialBits[i].visible = false;
         }
         for (let i = 0; i < 64; i++) {
-            cubes[i].visible = false;
+            barsArr[i].visible = false;
         }
-        //show wave
-        waveLine.visible = true;
-        analyser.getByteTimeDomainData(waveDataArray);
+        waveObj.visible = true;
+        analyser.getByteTimeDomainData(timeBuf);
 
         for (let i = 0; i < 128; i++) {
-            wavePositions[i * 3] = (i - 64) * 0.15; 
-            let targetY = (waveDataArray[i] - 128) / 50;
-            let currentY = wavePositions[(i * 3) + 1];
-            wavePositions[(i * 3) + 1] += (targetY - currentY) * 0.15; 
-            wavePositions[(i * 3) + 2] = 0;
+            wavePts[i * 3] = (i - 64) * 0.15; 
+            let targetY = (timeBuf[i] - 128) / 50;
+            let currentY = wavePts[(i * 3) + 1];
+            wavePts[(i * 3) + 1] += (targetY - currentY) * 0.15; 
+            wavePts[(i * 3) + 2] = 0;
         }
-        waveGeometry.attributes.position.needsUpdate = true;
+        waveGeom.attributes.position.needsUpdate = true;
 
-    } else if (currentMode === 'radial') {
-        // Hide bars and wave
+    } else if (mode === 'radial') {
         for (let i = 0; i < 64; i++) {
-            cubes[i].visible = false;
+            barsArr[i].visible = false;
         }
-        waveLine.visible = false;
+        waveObj.visible = false;
 
-        // show circle
         for (let i = 0; i < 32; i++) {
-            radialCubes[i].visible = true;
-            const pitch = dataArray[i * 2] / 255;
-            radialCubes[i].scale.y = 0.5 + (pitch * 8);
-            radialCubes[i].material.color.setHSL(0.5 - (pitch * 0.5), 1, 0.5);
+            radialBits[i].visible = true;
+            const pitch = freqBuf[i * 2] / 255;
+            radialBits[i].scale.y = 0.5 + (pitch * 8);
+            radialBits[i].material.color.setHSL(0.5 - (pitch * 0.5), 1, 0.5);
         }
     }
 
-    //particles movement
-    stars.rotation.y += 0.0005;
-    stars.rotation.x += 0.0002;
-        // If the user let go of the mouse, pull the camera back to Home
-    if (!isDragging) {
-        camera.position.lerp(homePosition, 0.05);
+    dust.rotation.y += 0.0005;
+    dust.rotation.x += 0.0002;
+
+    if (!isDraggingCam) {
+        camMain.position.lerp(idlePos, 0.05);
     }
 
-    controls.update();
-    composer.render(); //rendering the effects we made ealier
+    ctrl.update();
+    composerFx.render();
 }
-animate();
+
+run();

@@ -1,35 +1,50 @@
+<!-- index.html -->
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>scubaplayer</title>
+
     <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
+
     <div id="start-screen">
-        <img src="/scuba.gif" id="splash-gif">
+        <img src="/scuba.gif" id="splash-gif" alt="logo">
         <h1>SCUBA PLAYER</h1>
+
         <p>3D audio visualizer</p>
         <button id="enterBtn">start</button>
     </div>
 
-   
-    <div class="ui-panel" style="display: none;">
+    <div class="ui-panel">
+
         <div class="button-group">
-            <button class="btn" id="startBtn">Turn On Mic</button>
-            <button class="btn" id="fakeUploadBtn">Choose Song</button>
-            <button class="btn" id="playBtn" disabled>Play Song</button>
-            <input type="file" id="audioUpload" accept="audio/*" class="file-input">
-            <button class="btn" id="stopBtn" disabled>Stop</button>
+            <button class="btn" id="micToggle">Turn On Mic</button>
+            <button class="btn" id="fileTrigger">Choose Song</button>
+
+            <button class="btn" id="audioPlay" disabled>Play</button>
+            <input 
+                type="file" 
+                id="fileInput" 
+                accept="audio/*" 
+                class="file-input"
+            >
+
+            <button class="btn" id="audioStop" disabled>Stop</button>
         </div>
-        
         <div class="button-group">
-            <button class="btn active" id="modeBarsBtn">Bars</button>
-            <button class="btn" id="modeWaveBtn">Wave</button>
-            <button class="btn" id="modeRadialBtn">Circle</button>
+            <button class="btn active" id="setBars">Bars</button>
+            <button class="btn" id="setWave">Wave</button>
+
+            <button class="btn" id="setRadial">Circle</button>
         </div>
+
     </div>
-    
     <script type="module" src="/src/main.js"></script>
+
+
 </body>
 </html>
