@@ -47,13 +47,25 @@ composerFx.addPass(bloomFx);
 
 // yeah i had to use Ai in this
 const AudioCTX = window.AudioContext || window.webkitAudioContext;
-const ctx = new AudioCTX();
+let ctx = null;
 
-const analyser = ctx.createAnalyser();
-analyser.fftSize = 256;
+let analyser = null;
+let freqBuf = null;
+let timeBuf = null;
 
-const freqBuf = new Uint8Array(analyser.frequencyBinCount);
-const timeBuf = new Uint8Array(analyser.frequencyBinCount);
+function ensureCtx() {
+    if (!ctx) {
+        ctx = new AudioCTX();
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        freqBuf = new Uint8Array(analyser.frequencyBinCount);
+        timeBuf = new Uint8Array(analyser.frequencyBinCount);
+    }
+    if (ctx.state === 'suspended') {
+        ctx.resume();
+    }
+    return ctx;
+}
 
 // same
 let micEnabled = false;
@@ -65,6 +77,8 @@ const micBtn = document.getElementById('micToggle');
 micBtn.onclick = async function () {
     try {
         if (!micEnabled) {
+            ensureCtx();
+
             micStreamRef = await navigator.mediaDevices.getUserMedia({ audio: true });
             micNodeRef = ctx.createMediaStreamSource(micStreamRef);
 
@@ -101,6 +115,10 @@ document.getElementById('enterBtn').onclick = function () {
     document.querySelector('.ui-panel').style.display = 'flex';
 };
 
+document.getElementById('fileTrigger').onclick = function () {
+    document.getElementById('fileInput').click();
+};
+
 // custom music cuz imagine singing in the mic the whole day
 const audioTag = new Audio();
 let srcLinked = false;
@@ -116,7 +134,7 @@ document.getElementById('fileInput').addEventListener('change', function (e) {
 });
 
 document.getElementById('audioPlay').onclick = function () {
-    if (ctx.state === 'suspended') ctx.resume();
+    ensureCtx();
 
     if (!srcLinked) {
         const src = ctx.createMediaElementSource(audioTag);
@@ -209,7 +227,22 @@ window.addEventListener('resize', () => {
 function run() {
     requestAnimationFrame(run);
 
-    analyser.getByteFrequencyData(freqBuf);
+    if (analyser && freqBuf) {
+        analyser.getByteFrequencyData(freqBuf);
+    }
+
+    if (!analyser || !freqBuf) {
+        dust.rotation.y += 0.0005;
+        dust.rotation.x += 0.0002;
+
+        if (!isDraggingCam) {
+            camMain.position.lerp(idlePos, 0.05);
+        }
+
+        ctrl.update();
+        composerFx.render();
+        return;
+    }
 
     if (mode === 'bars') {
         waveObj.visible = false;
